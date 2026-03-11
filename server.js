@@ -18,8 +18,7 @@ const server = http.createServer(app);
 // Allowed origins
 const allowedOrigins = [
   "http://localhost:3000",
-  "https://austria-frontend.vercel.app",
-
+  "https://austria-frontend-3rk0o71uv-anjana-shijus-projects.vercel.app",
 ];
 
 // ─── Socket.io ────────────────────────────────────────
