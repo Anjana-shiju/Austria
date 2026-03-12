@@ -29,18 +29,36 @@ router.get('/history', protect, async (req, res) => {
 // POST /api/chat/voice - upload voice message
 router.post('/voice', protect, upload.single('audio'), async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ success: false, message: 'No audio file' });
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No audio file' });
+    }
 
     const b64 = Buffer.from(req.file.buffer).toString('base64');
     const dataURI = `data:${req.file.mimetype};base64,${b64}`;
 
     const result = await cloudinary.uploader.upload(dataURI, {
-      resource_type: 'video', // Cloudinary uses 'video' for audio
+      resource_type: 'video',
       folder: 'indiaustria/voice',
       format: 'webm'
     });
 
-    res.json({ success: true, url: result.secure_url });
+    const voiceUrl = result.secure_url;
+
+    // ✅ Save message to DB
+    const message = await ChatMessage.create({
+      sender: req.user._id,
+      message: `🎤 [voice] ${voiceUrl}`,
+      type: 'text'
+    });
+
+    const populatedMsg = await message.populate('sender', 'name university');
+
+    res.json({
+      success: true,
+      url: voiceUrl,
+      message: populatedMsg
+    });
+
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
