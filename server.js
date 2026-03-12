@@ -66,10 +66,12 @@ io.on('connection', (socket) => {
     try {
       if (!message?.trim()) return;
 
-      const msg = await ChatMessage.create({
-        sender: socket.user._id,
-        message: message.trim()
-      });
+      // server.js-ൽ ChatMessage.create-ൽ:
+const msg = await ChatMessage.create({
+  sender: socket.user._id,
+  message: message.trim(),
+  type: message.startsWith('🎤 [voice]') ? 'voice' : 'text'  // ← ഇത് add
+});
 
       const populated = await msg.populate('sender', 'name university');
 
