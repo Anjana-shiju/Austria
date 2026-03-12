@@ -15,17 +15,23 @@ const { ChatMessage } = require('./models/index');
 const app = express();
 const server = http.createServer(app);
 
-// Allowed origins
-const allowedOrigins = [
-  "http://localhost:3000",
-  "https://austria-frontend.vercel.app",
- 
-];
+// CORS origin checker — allows all vercel.app + localhost
+const corsOrigin = (origin, callback) => {
+  if (
+    !origin ||
+    origin === 'http://localhost:3000' ||
+    origin.endsWith('.vercel.app')
+  ) {
+    callback(null, true);
+  } else {
+    callback(new Error('Not allowed by CORS'));
+  }
+};
 
 // ─── Socket.io ────────────────────────────────────────
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins,
+    origin: corsOrigin,
     methods: ["GET", "POST"],
     credentials: true
   }
@@ -66,12 +72,11 @@ io.on('connection', (socket) => {
     try {
       if (!message?.trim()) return;
 
-      // server.js-ൽ ChatMessage.create-ൽ:
-const msg = await ChatMessage.create({
-  sender: socket.user._id,
-  message: message.trim(),
-  type: message.startsWith('🎤 [voice]') ? 'voice' : 'text'  // ← ഇത് add
-});
+      const msg = await ChatMessage.create({
+        sender: socket.user._id,
+        message: message.trim(),
+        type: message.startsWith('🎤 [voice]') ? 'voice' : 'text'
+      });
 
       const populated = await msg.populate('sender', 'name university');
 
@@ -80,7 +85,7 @@ const msg = await ChatMessage.create({
         sender: populated.sender,
         message: populated.message,
         createdAt: populated.createdAt,
-        type: 'text'
+        type: populated.type
       });
 
     } catch (err) {
@@ -99,7 +104,7 @@ const msg = await ChatMessage.create({
 app.use(helmet({ crossOriginEmbedderPolicy: false }));
 
 app.use(cors({
-  origin: allowedOrigins,
+  origin: corsOrigin,
   credentials: true
 }));
 
@@ -113,10 +118,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 200,
-  message: {
-    success: false,
-    message: 'Too many requests, try again later'
-  }
+  message: { success: false, message: 'Too many requests, try again later' }
 });
 
 app.use('/api/', limiter);
@@ -136,10 +138,7 @@ app.get('/health', (req, res) => {
 
 // 404 handler
 app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: 'Route not found'
-  });
+  res.status(404).json({ success: false, message: 'Route not found' });
 });
 
 // Global error handler
@@ -155,7 +154,6 @@ app.use((err, req, res, next) => {
 const seedAdmin = async () => {
   try {
     const exists = await User.findOne({ email: process.env.ADMIN_EMAIL });
-
     if (!exists) {
       await User.create({
         name: process.env.ADMIN_NAME || 'Admin',
@@ -165,10 +163,8 @@ const seedAdmin = async () => {
         university: 'Admin',
         country: 'Austria'
       });
-
       console.log('✅ Admin user created');
     }
-
   } catch (err) {
     console.error('Seed error:', err.message);
   }
@@ -179,7 +175,6 @@ const PORT = process.env.PORT || 5000;
 
 connectDB().then(async () => {
   await seedAdmin();
-
   server.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`📡 Socket.io ready`);
